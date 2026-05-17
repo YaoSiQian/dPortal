@@ -1,14 +1,29 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toPng } from 'html-to-image';
 
 import { useSceneStore, PLANET_LABELS } from '@/lib/sceneStore';
 import { SPACECRAFT } from '@/lib/journeyInventory';
 import { MOVIES_BY_PATH } from '@/lib/movieInfo';
+import {
+  proxiedImageUrl,
+  loadWorks,
+  loadPointsIndex
+} from '@/lib/anime/dataLoader';
+import type {
+  AnimeWork,
+  AnimePoint,
+  WorkId,
+  PointId
+} from '@/lib/anime/types';
 
 // JourneySummary — final card shown after the last stop. Shows the mood
 // line, the full itinerary in a poster grid, and the closing line.
+//
+// Renders for both cultural domains:
+//   · scifi : target = planet / spacecraft name; image = film poster
+//   · anime : target = work title (zh); image = point image (proxied)
 //
 // PNG export gotcha: html-to-image clones the node and serializes through
 // SVG foreignObject. Each <img> is supposed to be re-fetched and inlined
@@ -51,15 +66,60 @@ async function waitForImageLoad(img: HTMLImageElement): Promise<void> {
 }
 
 export function JourneySummary() {
-  const { navigatorPhase, journey, setNavigatorPhase, setJourney } = useSceneStore();
+  const {
+    domain,
+    navigatorPhase,
+    journey,
+    setNavigatorPhase,
+    setJourney,
+    animeNavigatorPhase,
+    animeJourney,
+    setAnimeNavigatorPhase,
+    setAnimeJourney
+  } = useSceneStore();
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [saving, setSaving] = useState(false);
 
-  if (navigatorPhase !== 'summary' || !journey) return null;
+  // Anime-domain data — only fetched when we're on the anime summary.
+  const [animeWorks, setAnimeWorks] = useState<Record<WorkId, AnimeWork> | null>(
+    null
+  );
+  const [animePoints, setAnimePoints] = useState<
+    Record<PointId, AnimePoint> | null
+  >(null);
+
+  const isScifiSummary =
+    domain === 'scifi' && navigatorPhase === 'summary' && !!journey;
+  const isAnimeSummary =
+    domain === 'anime' && animeNavigatorPhase === 'summary' && !!animeJourney;
+
+  useEffect(() => {
+    if (!isAnimeSummary) return;
+    let cancelled = false;
+    Promise.all([loadWorks(), loadPointsIndex()])
+      .then(([w, p]) => {
+        if (cancelled) return;
+        setAnimeWorks(w);
+        setAnimePoints(p);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isAnimeSummary]);
+
+  if (!isScifiSummary && !isAnimeSummary) return null;
+
+  const active = isAnimeSummary ? animeJourney! : journey!;
 
   const closeAll = () => {
-    setNavigatorPhase('closed');
-    setJourney(null);
+    if (isAnimeSummary) {
+      setAnimeNavigatorPhase('closed');
+      setAnimeJourney(null);
+    } else {
+      setNavigatorPhase('closed');
+      setJourney(null);
+    }
   };
 
   const savePng = async () => {
@@ -130,7 +190,9 @@ export function JourneySummary() {
                   界门 · Journey 01
                 </div>
                 <div className="mt-1 text-stardust/55 text-[12px] tracking-wider2">
-                  科幻观影路线 · 由你的心境策展
+                  {isAnimeSummary
+                    ? '二次元巡礼路线 · 由你的心境策展'
+                    : '科幻观影路线 · 由你的心境策展'}
                 </div>
               </div>
               <div className="text-stardust/35 text-[10px] tracking-cosmic uppercase tabular-nums">
@@ -148,7 +210,7 @@ export function JourneySummary() {
               主题
             </div>
             <div className="mt-3 text-stardust/95 text-[34px] tracking-wider2 font-thin leading-tight">
-              {journey.mood}
+              {active.mood}
             </div>
 
             <div className="mt-9 h-px w-full bg-stardust/15" />
@@ -158,19 +220,73 @@ export function JourneySummary() {
               旅程
             </div>
             <div className="mt-5 grid grid-cols-1 gap-5">
-              {journey.stops.map((stop, i) => {
-                const film = stop.filmPath ? MOVIES_BY_PATH[stop.filmPath] : null;
-                const target =
-                  stop.target.kind === 'planet'
-                    ? PLANET_LABELS[stop.target.id]
-                    : SPACECRAFT[stop.target.id].name;
+              {active.stops.map((stop, i) => {
+                let imgSrc: string | null = null;
+                let imgAlt = '';
+                let title = '';
+                let subtitleParts:
+                  | { zh: string; en?: string; year?: number | string }
+                  | null = null;
+                let kindLabel = '';
+
+                if (isAnimeSummary) {
+                  const aStop = stop as {
+                    pointId: PointId;
+                    narration: string;
+                    workId: WorkId | null;
+                  };
+                  const point = animePoints?.[aStop.pointId];
+                  const work =
+                    aStop.workId != null ? animeWorks?.[aStop.workId] : null;
+                  if (point?.imageUrl) {
+                    imgSrc = proxiedImageUrl(point.imageUrl);
+                    imgAlt = point.nameZh ?? point.name ?? point.id;
+                  }
+                  title =
+                    work?.titleZh ??
+                    work?.titleOrigin ??
+                    point?.nameZh ??
+                    point?.name ??
+                    '动画地点';
+                  if (work?.titleOrigin && work.titleOrigin !== title) {
+                    subtitleParts = { zh: title, en: work.titleOrigin };
+                  }
+                  kindLabel = '动画地点';
+                } else {
+                  const sStop = stop as {
+                    target:
+                      | { kind: 'planet'; id: keyof typeof PLANET_LABELS }
+                      | { kind: 'spacecraft'; id: keyof typeof SPACECRAFT };
+                    narration: string;
+                    filmPath?: string;
+                  };
+                  const film = sStop.filmPath
+                    ? MOVIES_BY_PATH[sStop.filmPath]
+                    : null;
+                  title =
+                    sStop.target.kind === 'planet'
+                      ? PLANET_LABELS[sStop.target.id]
+                      : SPACECRAFT[sStop.target.id].name;
+                  if (film) {
+                    imgSrc = film.poster;
+                    imgAlt = film.titleZh;
+                    subtitleParts = {
+                      zh: film.titleZh,
+                      en: film.titleEn,
+                      year: film.year
+                    };
+                  }
+                  kindLabel =
+                    sStop.target.kind === 'planet' ? '行星' : '航天器';
+                }
+
                 return (
                   <div key={i} className="flex gap-5 items-start">
-                    {film ? (
+                    {imgSrc ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={film.poster}
-                        alt={film.titleZh}
+                        src={imgSrc}
+                        alt={imgAlt}
                         className="h-28 w-auto object-contain rounded-sm flex-shrink-0"
                       />
                     ) : (
@@ -184,24 +300,36 @@ export function JourneySummary() {
                           0{i + 1}
                         </span>
                         <span className="text-stardust/85 text-[14px] tracking-wider2 font-light">
-                          {target}
+                          {title}
                         </span>
                         <span className="text-stardust/25 text-[9px] tracking-cosmic uppercase">
-                          {stop.target.kind === 'planet' ? '行星' : '航天器'}
+                          {kindLabel}
                         </span>
                       </div>
                       <p className="mt-2 text-stardust/70 text-[12px] leading-relaxed">
                         {stop.narration}
                       </p>
-                      {film && (
+                      {subtitleParts && (
                         <div className="mt-2.5 flex items-baseline gap-2 text-[11px]">
-                          <span className="text-stardust/90 tracking-wider2">{film.titleZh}</span>
-                          <span className="text-stardust/30">·</span>
-                          <span className="text-stardust/40 tracking-cosmic uppercase text-[9px]">
-                            {film.titleEn}
+                          <span className="text-stardust/90 tracking-wider2">
+                            {subtitleParts.zh}
                           </span>
-                          <span className="text-stardust/30">·</span>
-                          <span className="text-stardust/40 tabular-nums">{film.year}</span>
+                          {subtitleParts.en && (
+                            <>
+                              <span className="text-stardust/30">·</span>
+                              <span className="text-stardust/40 tracking-cosmic uppercase text-[9px]">
+                                {subtitleParts.en}
+                              </span>
+                            </>
+                          )}
+                          {subtitleParts.year && (
+                            <>
+                              <span className="text-stardust/30">·</span>
+                              <span className="text-stardust/40 tabular-nums">
+                                {subtitleParts.year}
+                              </span>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
@@ -214,7 +342,7 @@ export function JourneySummary() {
 
             {/* Closing line */}
             <div className="mt-8 text-stardust/90 text-[15px] tracking-wider2 font-thin italic leading-relaxed text-center">
-              {journey.closing}
+              {active.closing}
             </div>
 
             <div className="mt-10 flex items-baseline justify-center gap-3 select-none">

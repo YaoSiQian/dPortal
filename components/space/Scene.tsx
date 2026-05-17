@@ -25,6 +25,7 @@ import { Neptune } from '@/components/planets/Neptune';
 import { PostFX } from '@/components/effects/PostFX';
 import { useArtifactRegistration, useSceneStore } from '@/lib/sceneStore';
 import { AnimeOverlay } from '@/components/anime/AnimeOverlay';
+import { AnimeJourneyController } from '@/components/anime/AnimeJourneyController';
 
 // Voyager 1 sits at a fixed point past Neptune, "leaving the solar system".
 // Just a slow self-rotation, no orbital motion. Registers as an artifact so
@@ -184,6 +185,7 @@ export function Scene() {
         {domain === 'scifi' && <PostersLayer />}
 
         <CameraRig />
+        {domain === 'anime' && <AnimeJourneyController />}
         <Voyage />
         <VoyagePath />
         <PostFX />
