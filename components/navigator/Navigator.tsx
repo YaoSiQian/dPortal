@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSceneStore } from '@/lib/sceneStore';
 import { useSpeechRecognition, type SpeechErrorCode } from '@/lib/useSpeechRecognition';
 import type { JourneyApiResponse } from '@/lib/journeyTypes';
+import type { AnimeJourneyApiResponse } from '@/lib/anime/animeJourneyTypes';
 
 // Navigator — the entry surface for the AI Journey feature.
 //
@@ -15,6 +16,15 @@ import type { JourneyApiResponse } from '@/lib/journeyTypes';
 //
 // Esc closes the panel. We disable orbit controls while open (the panel
 // captures pointer events anyway).
+
+const ANIME_PLACEHOLDERS = [
+  '想去秩父巡礼…',
+  '想看东京塔和咖啡馆相关的地标',
+  '《你的名字》取景地',
+  '想找京都的动画地点',
+  '夏日祭典的地标',
+  '海边小镇巡礼'
+];
 
 const PLACEHOLDERS = [
   '想看人类幻想中回家的旅程…',
@@ -31,7 +41,11 @@ export function Navigator() {
     setNavigatorPhase,
     setJourney,
     setJourneyStopIndex,
-    introDone
+    introDone,
+    domain,
+    setAnimeNavigatorPhase,
+    setAnimeJourney,
+    setAnimeJourneyStopIndex
   } = useSceneStore();
 
   const [mood, setMood] = useState('');
@@ -109,6 +123,35 @@ export function Navigator() {
       speech.stop();
     }
     setError(null);
+
+    if (domain === 'anime') {
+      setAnimeNavigatorPhase('loading');
+      try {
+        const res = await fetch('/api/animeJourney', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mood: trimmed })
+        });
+        const data: AnimeJourneyApiResponse = await res.json();
+        if (!data.ok) {
+          setError(data.error ?? '领航员遇到问题 · Navigator failed');
+          setAnimeNavigatorPhase('prompting');
+          return;
+        }
+        setAnimeJourney(data.journey);
+        setAnimeJourneyStopIndex(0);
+        setAnimeNavigatorPhase('previewing');
+        // Also flip the legacy phase to 'closed' so the fullscreen
+        // panel UI dismisses (it reads `navigatorPhase` for visibility).
+        setNavigatorPhase('closed');
+      } catch (e) {
+        setError(`网络异常 · Network error: ${(e as Error).message}`);
+        setAnimeNavigatorPhase('prompting');
+      }
+      return;
+    }
+
+    // existing scifi branch
     setNavigatorPhase('loading');
     try {
       const res = await fetch('/api/journey', {
@@ -195,7 +238,7 @@ export function Navigator() {
                 }
               }}
               disabled={isLoading}
-              placeholder={PLACEHOLDERS[placeholderIdx]}
+              placeholder={(domain === 'anime' ? ANIME_PLACEHOLDERS : PLACEHOLDERS)[placeholderIdx % (domain === 'anime' ? ANIME_PLACEHOLDERS.length : PLACEHOLDERS.length)]}
               maxLength={280}
               rows={3}
               className="w-full bg-transparent text-stardust/95 placeholder:text-stardust/25 text-[15px] tracking-wider2 leading-relaxed font-light resize-none focus:outline-none disabled:opacity-50"
