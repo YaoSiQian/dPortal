@@ -165,6 +165,19 @@ TypeScript 会列出所有缺漏字典——按提示补全即可。
 
 LLM 自动看到新电影（`buildFilmsBlock()` 直接遍历字典），无需改 prompt。
 
+### 添加 / 更新二次元领域数据
+
+二次元（anime）文化领域使用 anitabi 圣地巡礼数据，以预构建的静态包形式落在 `public/data/anime/anitabi/`。仓库中已包含一个最小演示数据集（约 30 部作品），如需重建：
+
+```bash
+npm run build:anime           # 抓取 anitabi 全量并写入 public/data/anime/anitabi/
+npm run build:anime:demo      # 截取演示子集（top N 作品）—— 提交到仓库
+```
+
+切换到二次元领域：右上角胶囊「二次元 · Anime」。点击地球表面的地标查看详情；按 ⌘K 让 AI 策划一条巡礼路线。
+
+详细架构见 `docs/2026-05-16-portal-anitabi-anime-domain-design.md` 与 `docs/superpowers/plans/2026-05-17-anime-cultural-domain.md`。
+
 ---
 
 ## 主要功能
