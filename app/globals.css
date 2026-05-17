@@ -1,6 +1,17 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-deep: #04060c;
+  --color-stardust: #cbd5e1;
+  --color-nebula: #7aa2ff;
+
+  --font-display: ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  --tracking-cosmic: 0.42em;
+  --tracking-wider2: 0.22em;
+
+  --animate-pulse-slow: pulse 4.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
 
 :root {
   color-scheme: dark;
