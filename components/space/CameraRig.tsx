@@ -73,7 +73,9 @@ export function CameraRig() {
     planets,
     artifacts,
     controlsRef,
-    navigatorPhase
+    navigatorPhase,
+    domain,
+    animeNavigatorPhase
   } = useSceneStore();
 
   const planetPos = useRef(new THREE.Vector3());
@@ -144,12 +146,15 @@ export function CameraRig() {
   }, [focused, focusedArtifact]);
 
   // Leaving the running phase clears the dwell so plain tracking takes over
-  // for the summary / closed states.
+  // for the summary / closed states. An anime journey kicking into 'running'
+  // also clears dwell — CameraRig stands down entirely while the anime
+  // controller owns the camera.
   useEffect(() => {
-    if (navigatorPhase !== 'running') {
+    const inAnimeJourney = domain === 'anime' && animeNavigatorPhase === 'running';
+    if (navigatorPhase !== 'running' || inAnimeJourney) {
       dwellRef.current.active = false;
     }
-  }, [navigatorPhase]);
+  }, [navigatorPhase, domain, animeNavigatorPhase]);
 
   useEffect(() => {
     const t = transitionRef.current;
@@ -257,7 +262,8 @@ export function CameraRig() {
     //   simple     — overview ↔ planet, or planet ↔ artifact zoom-in.
     const isPlanetToPlanet =
       prevFocused !== null && focused !== null && !focusedArtifact && !prevArtifact;
-    const inJourney = navigatorPhase === 'running';
+    const inAnimeJourney = domain === 'anime' && animeNavigatorPhase === 'running';
+    const inJourney = navigatorPhase === 'running' || inAnimeJourney;
     const useDramatic = isPlanetToPlanet && !inJourney;
     // "Subject-to-subject" inside a journey: prior frame had a target (planet
     // or artifact) and so does the new one. Pure overview→first-stop falls
@@ -379,10 +385,15 @@ export function CameraRig() {
           camera.lookAt(controlsRef.current.target);
         }
 
-        // Inside a running journey, kick off orbital dwell instead of
+        // Inside a running scifi journey, kick off orbital dwell instead of
         // handing back to tracking. Capture the current angle / radius so
-        // there's no jump.
-        if (navigatorPhase === 'running' && controlsRef.current) {
+        // there's no jump. Anime journeys have their own controller driving
+        // the camera, so we leave dwell off.
+        if (
+          navigatorPhase === 'running' &&
+          !inAnimeJourney &&
+          controlsRef.current
+        ) {
           const o = new THREE.Vector3().subVectors(
             camera.position,
             controlsRef.current.target
@@ -397,13 +408,14 @@ export function CameraRig() {
         setTransitioning(false);
       }
     });
-  }, [focused, focusedArtifact, status, planets, artifacts, controlsRef, camera, navigatorPhase]);
+  }, [focused, focusedArtifact, status, planets, artifacts, controlsRef, camera, navigatorPhase, domain, animeNavigatorPhase]);
 
   useFrame((state, dt) => {
     if (status === 'voyaging') return;
     if (!controlsRef.current) return;
     const controls = controlsRef.current;
     const t = transitionRef.current;
+    const inAnimeJourney = domain === 'anime' && animeNavigatorPhase === 'running';
 
     // ============ Cinematic transition ============
     if (transitioningRef.current && t.curve) {
@@ -416,6 +428,14 @@ export function CameraRig() {
           : p;
       controls.target.copy(t.startTarget).lerp(t.endTarget, blend);
       camera.lookAt(controls.target);
+      return;
+    }
+
+    // ============ Anime journey: yield ============
+    // The AnimeJourneyController owns the camera entirely while an anime
+    // journey runs (it lerps both camera.position and controls.target every
+    // frame). Writing anything here would fight it and produce jitter.
+    if (inAnimeJourney) {
       return;
     }
 
@@ -575,9 +595,12 @@ export function CameraRig() {
   // OrbitControls is disabled in three places:
   //   · voyaging — Voyage owns the camera
   //   · transitioning — GSAP owns the camera mid-flight
-  //   · journey running — dwell + curves own the camera; user input is
+  //   · journey running — dwell + curves own the camera (scifi) or the
+  //     AnimeJourneyController owns it (anime); either way user input is
   //     locked out so the cinematic isn't disturbed
-  const inJourneyRunning = navigatorPhase === 'running';
+  const inJourneyRunning =
+    navigatorPhase === 'running' ||
+    (domain === 'anime' && animeNavigatorPhase === 'running');
   return (
     <OrbitControls
       ref={controlsRef}

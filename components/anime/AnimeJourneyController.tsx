@@ -113,7 +113,9 @@ export function AnimeJourneyController() {
       return;
     }
 
-    if (phaseRef.current === 'descending' || phaseRef.current === 'holding') {
+    if (phaseRef.current === 'descending') {
+      // Descend over 4 s: lerp target toward surface and pull camera radius
+      // down 8 → 0.45.
       const t = Math.min(1, (now - phaseStartedAt.current) / 4000);
       controlsRef.current.target.lerp(localTarget.current, t * 0.05);
       const dirToCam = camera.position.clone().sub(controlsRef.current.target);
@@ -124,11 +126,22 @@ export function AnimeJourneyController() {
       camera.position.lerp(desiredCam.current, 0.04);
       camera.lookAt(controlsRef.current.target);
 
-      if (phaseRef.current === 'descending' && t >= 1) {
+      if (t >= 1) {
         phaseRef.current = 'holding';
         phaseStartedAt.current = now;
       }
-      if (phaseRef.current === 'holding' && now - phaseStartedAt.current > STOP_HOLD_MS) {
+      return;
+    }
+
+    if (phaseRef.current === 'holding') {
+      // Hold: keep target glued to the surface point. No radius lerp, so the
+      // camera stays at the descent endpoint instead of recoiling outward.
+      // The small target lerp continues to tighten onto the exact surface
+      // point as Earth rotates.
+      controlsRef.current.target.lerp(localTarget.current, 0.08);
+      camera.lookAt(controlsRef.current.target);
+
+      if (now - phaseStartedAt.current > STOP_HOLD_MS) {
         const next = animeJourneyStopIndex + 1;
         if (next < animeJourney.stops.length) {
           setAnimeJourneyStopIndex(next);
@@ -140,6 +153,7 @@ export function AnimeJourneyController() {
           setAnimeNavigatorPhase('summary');
         }
       }
+      return;
     }
   });
 
