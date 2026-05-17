@@ -7,6 +7,7 @@ import { ArtifactCard } from './ArtifactCard';
 import { VoyagePlot } from './VoyagePlot';
 import { MoviePanel } from './MoviePanel';
 import { LibraryPanel } from './LibraryPanel';
+import { DomainSwitcher } from './DomainSwitcher';
 
 export function HUD() {
   const {
@@ -62,6 +63,8 @@ export function HUD() {
 
   return (
     <>
+      <DomainSwitcher />
+
       <div
         className={`absolute top-8 left-10 z-10 pointer-events-none select-none worlds-fade-in ${fadeCls}`}
       >
