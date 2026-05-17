@@ -18,6 +18,9 @@ type Props = {
   axialTilt?: number;
   /** Surface artifacts (Apollo, etc.) placed on the Moon. */
   moonChildren?: ReactNode;
+  /** Children rendered inside Earth's tilted group, co-rotating with
+   *  the surface. Used by the anime cultural domain overlay. */
+  children?: ReactNode;
 };
 
 const APPROACH = 11;
@@ -30,7 +33,8 @@ export function Earth({
   initialAngle = 0,
   radius = 1.7,
   axialTilt = 0.41,
-  moonChildren
+  moonChildren,
+  children
 }: Props) {
   const groupRef = useRef<THREE.Group>(null);
   const surfaceRef = useRef<THREE.Mesh>(null);
@@ -143,6 +147,8 @@ export function Earth({
             blending={THREE.AdditiveBlending}
           />
         </mesh>
+
+        {children}
       </group>
 
       <Moon orbitRadius={6.5} speed={0.22} initialAngle={0.8}>

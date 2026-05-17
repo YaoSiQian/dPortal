@@ -23,7 +23,8 @@ import { Saturn } from '@/components/planets/Saturn';
 import { Uranus } from '@/components/planets/Uranus';
 import { Neptune } from '@/components/planets/Neptune';
 import { PostFX } from '@/components/effects/PostFX';
-import { useArtifactRegistration } from '@/lib/sceneStore';
+import { useArtifactRegistration, useSceneStore } from '@/lib/sceneStore';
+import { AnimeOverlay } from '@/components/anime/AnimeOverlay';
 
 // Voyager 1 sits at a fixed point past Neptune, "leaving the solar system".
 // Just a slow self-rotation, no orbital motion. Registers as an artifact so
@@ -44,6 +45,7 @@ function Voyager() {
 }
 
 export function Scene() {
+  const { domain } = useSceneStore();
   return (
     <Canvas
       className="absolute inset-0"
@@ -85,7 +87,9 @@ export function Scene() {
               approachDistance={0.18}
             />
           }
-        />
+        >
+          {domain === 'anime' && <AnimeOverlay />}
+        </Earth>
         <Mars orbitRadius={42} speed={0.052} initialAngle={3.8}>
           <SurfaceArtifact
             modelUrl="/models/viking.glb"
@@ -177,7 +181,7 @@ export function Scene() {
 
         {/* Sci-fi film posters orbiting their associated planet as
             holographic memory residues. Fade in when the camera approaches. */}
-        <PostersLayer />
+        {domain === 'scifi' && <PostersLayer />}
 
         <CameraRig />
         <Voyage />
