@@ -7,3 +7,6 @@ out/
 .vercel
 .turbo
 *.tsbuildinfo
+
+# Anime build pipeline raw cache (re-fetched on demand)
+public/data/anime/anitabi/_raw/
