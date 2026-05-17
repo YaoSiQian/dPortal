@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "build:anime": "node scripts/anime/build-anitabi.mjs"
+    "build:anime": "node scripts/anime/build-anitabi.mjs",
+    "build:anime:demo": "node scripts/anime/build-demo-subset.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
