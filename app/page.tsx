@@ -8,6 +8,7 @@ import { JourneyPreview } from '@/components/navigator/JourneyPreview';
 import { JourneyController } from '@/components/navigator/JourneyController';
 import { JourneySummary } from '@/components/navigator/JourneySummary';
 import { JourneyFocusIndicator } from '@/components/navigator/JourneyFocusIndicator';
+import { AnimeDetailCard } from '@/components/anime/AnimeDetailCard';
 import { SceneStoreProvider } from '@/lib/sceneStore';
 
 const Scene = dynamic(
@@ -29,6 +30,7 @@ export default function Page() {
         <Navigator />
         <JourneyPreview />
         <JourneySummary />
+        <AnimeDetailCard />
         <LandingExperience />
       </main>
     </SceneStoreProvider>
