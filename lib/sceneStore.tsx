@@ -16,6 +16,13 @@ import type * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
 import type { Journey, SpacecraftId } from './journeyTypes';
+import type { CulturalDomain } from './domain';
+import { DEFAULT_DOMAIN } from './domain';
+
+// TODO(Task 5): replace this placeholder with a real import once
+// `lib/anime/animeJourneyTypes.ts` exists:
+//   import type { AnimeJourney } from './anime/animeJourneyTypes';
+type AnimeJourney = unknown;
 
 export type PlanetId =
   | 'mercury'
@@ -112,6 +119,25 @@ type SceneStore = {
   planets: Map<PlanetId, PlanetInfo>;
   artifacts: Map<SpacecraftId, ArtifactInfo>;
   controlsRef: MutableRefObject<OrbitControlsImpl | null>;
+  // --- Anime cultural domain ---
+  /** Active cultural domain. Switching this swaps the entire content
+   *  layer (sci-fi posters/spacecraft ↔ anime landmarks). The 3D
+   *  planet scaffolding is shared. */
+  domain: CulturalDomain;
+  setDomain: (d: CulturalDomain) => void;
+  /** Currently selected anime landmark (geohash pointId), null when
+   *  none. Independent from `focused` (planets) and `focusedArtifact`
+   *  (spacecraft) so the existing camera logic is untouched. */
+  focusedAnimePointId: string | null;
+  setFocusedAnimePointId: (id: string | null) => void;
+  /** Anime-domain Navigator phase. Mirrors `navigatorPhase` but stays
+   *  separate so the sci-fi state machine is unaffected. */
+  animeNavigatorPhase: NavigatorPhase;
+  setAnimeNavigatorPhase: (p: NavigatorPhase) => void;
+  animeJourney: AnimeJourney | null;
+  setAnimeJourney: (j: AnimeJourney | null) => void;
+  animeJourneyStopIndex: number;
+  setAnimeJourneyStopIndex: (i: number) => void;
 };
 
 const Ctx = createContext<SceneStore | null>(null);
@@ -144,6 +170,27 @@ export function SceneStoreProvider({ children }: { children: ReactNode }) {
       window.localStorage.setItem('portal:audioMuted', v ? '1' : '0');
     }
   }, []);
+
+  // --- Anime cultural domain state ---
+  const [domain, setDomainState] = useState<CulturalDomain>(DEFAULT_DOMAIN);
+  // Persist domain across reloads — feels less jarring than always
+  // resetting to 'scifi'.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = window.localStorage.getItem('portal:domain');
+    if (stored === 'scifi' || stored === 'anime') setDomainState(stored);
+  }, []);
+  const setDomain = useCallback((d: CulturalDomain) => {
+    setDomainState(d);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('portal:domain', d);
+    }
+  }, []);
+
+  const [focusedAnimePointId, setFocusedAnimePointId] = useState<string | null>(null);
+  const [animeNavigatorPhase, setAnimeNavigatorPhase] = useState<NavigatorPhase>('closed');
+  const [animeJourney, setAnimeJourney] = useState<AnimeJourney | null>(null);
+  const [animeJourneyStopIndex, setAnimeJourneyStopIndex] = useState<number>(0);
 
   const planets = useRef<Map<PlanetId, PlanetInfo>>(new Map()).current;
   const artifacts = useRef<Map<SpacecraftId, ArtifactInfo>>(new Map()).current;
@@ -184,6 +231,16 @@ export function SceneStoreProvider({ children }: { children: ReactNode }) {
       planets,
       artifacts,
       controlsRef,
+      domain,
+      setDomain,
+      focusedAnimePointId,
+      setFocusedAnimePointId,
+      animeNavigatorPhase,
+      setAnimeNavigatorPhase,
+      animeJourney,
+      setAnimeJourney,
+      animeJourneyStopIndex,
+      setAnimeJourneyStopIndex,
       setFocused,
       setFocusedArtifact,
       setVoyageFrom,
@@ -219,6 +276,12 @@ export function SceneStoreProvider({ children }: { children: ReactNode }) {
       planets,
       artifacts,
       controlsRef,
+      domain,
+      setDomain,
+      focusedAnimePointId,
+      animeNavigatorPhase,
+      animeJourney,
+      animeJourneyStopIndex,
       startVoyage,
       completeVoyage,
       cancelVoyage
