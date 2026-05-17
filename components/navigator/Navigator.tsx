@@ -53,6 +53,8 @@ export function Navigator() {
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
+  const currentPlaceholders = domain === 'anime' ? ANIME_PLACEHOLDERS : PLACEHOLDERS;
+
   // Voice dictation. Each finalised chunk is appended to the current mood
   // (with a space separator if mood already has content). The interim
   // transcript is shown inside the textarea — but rendered, not stored,
@@ -111,10 +113,10 @@ export function Navigator() {
   useEffect(() => {
     if (navigatorPhase !== 'prompting') return;
     const id = setInterval(() => {
-      setPlaceholderIdx((i) => (i + 1) % PLACEHOLDERS.length);
+      setPlaceholderIdx((i) => (i + 1) % currentPlaceholders.length);
     }, 3500);
     return () => clearInterval(id);
-  }, [navigatorPhase]);
+  }, [navigatorPhase, currentPlaceholders.length]);
 
   const submit = async () => {
     const trimmed = mood.trim();
@@ -238,7 +240,7 @@ export function Navigator() {
                 }
               }}
               disabled={isLoading}
-              placeholder={(domain === 'anime' ? ANIME_PLACEHOLDERS : PLACEHOLDERS)[placeholderIdx % (domain === 'anime' ? ANIME_PLACEHOLDERS.length : PLACEHOLDERS.length)]}
+              placeholder={currentPlaceholders[placeholderIdx % currentPlaceholders.length]}
               maxLength={280}
               rows={3}
               className="w-full bg-transparent text-stardust/95 placeholder:text-stardust/25 text-[15px] tracking-wider2 leading-relaxed font-light resize-none focus:outline-none disabled:opacity-50"
