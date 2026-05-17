@@ -18,11 +18,7 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { Journey, SpacecraftId } from './journeyTypes';
 import type { CulturalDomain } from './domain';
 import { DEFAULT_DOMAIN } from './domain';
-
-// TODO(Task 5): replace this placeholder with a real import once
-// `lib/anime/animeJourneyTypes.ts` exists:
-//   import type { AnimeJourney } from './anime/animeJourneyTypes';
-type AnimeJourney = unknown;
+import type { AnimeJourney } from './anime/animeJourneyTypes';
 
 export type PlanetId =
   | 'mercury'
